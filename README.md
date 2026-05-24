@@ -34,6 +34,49 @@
 | 콘텐츠 상세 조회가 구매로 이어지는가? | content_view, purchase_start, purchase_complete | partner_id, session_id, user_id, content_id, purchase_attempt_id, amount | 조회 대비 구매 시작률과 구매 완료율이 낮은 콘텐츠를 찾아 가격, 설명, 혜택 구성을 개선한다.                   |
 | 결제에서 실패하는가? | purchase_start, purchase_complete, payment_failed | partner_id, session_id, purchase_attempt_id, payment_method, error_code, error_msg | 결제 실패율이 높은 결제 수단, 디바이스, 오류 코드를 찾아 결제 UX와 오류 대응을 개선한다.                   |
 
+## 실행
+
+### 실행 전 준비
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python3 -m src.reset_db
+```
+
+이벤트 생성기는 `contents` 시드 데이터를 기반으로 세션 단위 랜덤 이벤트를 만든다.
+
+```text
+session_start
+→ landing_page_view
+  → 이탈
+  → content_view
+    → 이탈
+    → purchase_start
+      → 이탈
+      → purchase_complete
+      → payment_failed
+```
+
+### 이벤트 생성
+```bash
+python3 -m src.event_generator --sessions 100 --seed 1
+```
+
+### 이벤트 저장
+`--seed`를 지정하면 같은 이벤트를 다시 생성할 수 있다.
+```bash
+python3 -m src.event_store --sessions 100 --seed 1
+```
+
+### 결과 시각화
+```bash
+python3 -m src.dashboard --host 127.0.0.1 --port 8050
+```
+
+브라우저에서 `http://127.0.0.1:8050`으로 접속한다.
+
 ## 저장소 설계
 스키마 파일은 [db/init.sql](./db/init.sql)에 위치
 
@@ -77,43 +120,14 @@
 | properties | JSONB | 이벤트별 상세 속성 |
 | created_at | TIMESTAMPTZ | DB 저장 시간 |
 
-## 실행 전 준비
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python3 -m src.reset_db
-```
+## 구현하면서 고민한 점
+- 프로젝트에서 목표 수립  
+이벤트를 먼저 정한다면 그 틀에서의 인사이트 밖에 안나올거라 생각하여 목표를 먼저 세우는데
+만약 내가 플랫폼이라면, 파트너라면 "어떤 데이터가 필요하고 비교하며 개선할 수 있을까?"에서 고민을 가장 많이함
 
-이벤트 생성기는 `contents` 시드 데이터를 기반으로 세션 단위 랜덤 이벤트를 만든다.
+- dash 차트
+막상 목표로 만든 수치들을 뽑아도 뭔가 부족한 느낌이 나고   
+이것만으로는 도움이 안될 것 같아 더 괜찮은 수치를 만들기 위한 고민을 많이함
 
-```text
-session_start
-→ landing_page_view
-  → 이탈
-  → content_view
-    → 이탈
-    → purchase_start
-      → 이탈
-      → purchase_complete
-      → payment_failed
-```
-
-## 이벤트 생성
-```bash
-python3 -m src.event_generator --sessions 100 --seed 1
-```
-
-## 이벤트 저장
-`--seed`를 지정하면 같은 이벤트를 다시 생성할 수 있다.
-```bash
-python3 -m src.event_store --sessions 100 --seed 1
-```
-
-## 결과 시각화
-```bash
-python3 -m src.dashboard --host 127.0.0.1 --port 8050
-```
-
-브라우저에서 `http://127.0.0.1:8050`으로 접속한다.
+## 여담
+못했거나 아쉬운 부분이 있었다면 어떤 형태로든 피드백을 받게된다면 참 좋을 것 같습니다!
