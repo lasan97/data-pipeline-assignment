@@ -58,10 +58,10 @@ def insert_events(events):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=None, help="재현 가능한 생성을 위한 seed")
-    parser.add_argument("--count", type=int, default=100, help="생성 후 저장할 이벤트 수")
+    parser.add_argument("--sessions", type=int, default=100, help="생성 후 저장할 세션 수")
     args = parser.parse_args()
 
-    events = generate_events(count=args.count, seed=args.seed)
+    events = generate_events(sessions=args.sessions, seed=args.seed)
     inserted_count = insert_events(events)
     print(f"inserted_events={inserted_count}")
 

@@ -21,36 +21,45 @@ EVENT_TYPES = (
 
 DEVICE_TYPES = ("desktop", "mobile", "tablet")
 LANDING_PAGES = ("/", "/courses", "/creators", "/event/spring-sale")
+
 REFERRERS = (None, "https://google.com", "https://naver.com", "https://instagram.com")
 UTM_SOURCES = (None, "google", "naver", "instagram", "newsletter")
 UTM_CAMPAIGNS = (None, "spring_sale", "new_creator", "retargeting")
 PAYMENT_METHODS = ("card", "kakao_pay", "naver_pay", "bank_transfer")
+
 ERRORS = (
     ("CARD_DECLINED", "카드 승인이 거절되었습니다."),
     ("TIMEOUT", "결제 요청 시간이 초과되었습니다."),
     ("INVALID_AUTH", "결제 인증에 실패했습니다."),
 )
 
+FUNNEL_SCENARIOS = (
+    ("landing_only", 25),
+    ("content_view_only", 35),
+    ("purchase_start_only", 10),
+    ("purchase_complete", 25),
+    ("payment_failed", 5),
+)
 
-def generate_events(count=100, seed=None):
-    """요청한 개수만큼 랜덤 이벤트 dict 목록을 생성한다.
 
-    count:
-        생성할 이벤트 개수.
+def generate_events(sessions=100, seed=None):
+    """요청한 세션 수만큼 퍼널 흐름을 따르는 이벤트 dict 목록을 생성한다.
+
+    sessions:
+        생성할 방문 세션 수.
     seed:
         같은 랜덤 결과를 재현하고 싶을 때 사용한다.
         테스트에서는 seed를 고정해서 매번 같은 이벤트가 나오게 한다.
     """
     rng = random.Random(seed)
     base_time = datetime(2026, 5, 24, 9, 0, tzinfo=ZoneInfo("Asia/Seoul"))
-
     contents = _normalize_contents(load_contents())
-    partner_ids = tuple(sorted({content["partner_id"] for content in contents}))
 
-    return [
-        _generate_event(rng, base_time, index, contents, partner_ids)
-        for index in range(count)
-    ]
+    events = []
+    for index in range(sessions):
+        events.extend(_generate_session_events(rng, base_time, index, contents))
+
+    return events
 
 
 def load_contents():
@@ -115,40 +124,105 @@ def _normalize_contents(contents):
     return normalized
 
 
-def _generate_event(rng, base_time, index, contents, partner_ids):
-    """이벤트 한 건을 생성한다."""
-
-    event_type = rng.choice(EVENT_TYPES)
+def _generate_session_events(rng, base_time, index, contents):
+    """세션 한 건에 해당하는 퍼널 이벤트 묶음을 생성한다."""
+    scenario = _choose_scenario(rng)
     content = rng.choice(contents)
+    partner_id = content["partner_id"]
 
-    partner_id = content["partner_id"] if _uses_content(event_type) else rng.choice(partner_ids)
-    purchase_attempt_id = f"purchase_attempt_{rng.randint(1, 5000)}"
+    session_id = f"session_{index + 1}"
+    user_id = _user_id(rng)
+    device_type = rng.choice(DEVICE_TYPES)
 
+    purchase_attempt_id = f"purchase_attempt_{index + 1}"
+    payment_method = rng.choice(PAYMENT_METHODS)
+    event_types = ["session_start", "landing_page_view"]
+
+    if scenario in {
+        "content_view_only",
+        "purchase_start_only",
+        "purchase_complete",
+        "payment_failed",
+    }:
+        event_types.append("content_view")
+
+    if scenario in {"purchase_start_only", "purchase_complete", "payment_failed"}:
+        event_types.append("purchase_start")
+
+    if scenario == "purchase_complete":
+        event_types.append("purchase_complete")
+
+    if scenario == "payment_failed":
+        event_types.append("payment_failed")
+
+    return [
+        _build_event(
+            rng=rng,
+            base_time=base_time,
+            session_index=index,
+            step_index=step_index,
+            event_type=event_type,
+            partner_id=partner_id,
+            user_id=user_id,
+            session_id=session_id,
+            device_type=device_type,
+            content=content,
+            purchase_attempt_id=purchase_attempt_id,
+            payment_method=payment_method,
+        )
+        for step_index, event_type in enumerate(event_types)
+    ]
+
+
+def _choose_scenario(rng):
+    """가중치 기반으로 세션 퍼널 시나리오를 하나 선택한다."""
+    scenarios = [scenario for scenario, _weight in FUNNEL_SCENARIOS]
+    weights = [weight for _scenario, weight in FUNNEL_SCENARIOS]
+
+    return rng.choices(scenarios, weights=weights, k=1)[0]
+
+
+def _build_event(
+    rng,
+    base_time,
+    session_index,
+    step_index,
+    event_type,
+    partner_id,
+    user_id,
+    session_id,
+    device_type,
+    content,
+    purchase_attempt_id,
+    payment_method,
+):
+    """공통 필드와 event_type별 properties를 합쳐 이벤트 한 건을 만든다."""
     return {
         "event_id": str(uuid.UUID(int=rng.getrandbits(128))),
         "event_type": event_type,
-        "occurred_at": _occurred_at(rng, base_time, index),
+        "occurred_at": _occurred_at(rng, base_time, session_index, step_index),
         "partner_id": partner_id,
-        "user_id": _user_id(rng),
-        "session_id": f"session_{rng.randint(1, 2000)}",
-        "device_type": rng.choice(DEVICE_TYPES),
-        "properties": _properties_for(event_type, content, purchase_attempt_id, rng),
+        "user_id": user_id,
+        "session_id": session_id,
+        "device_type": device_type,
+        "properties": _properties_for(
+            event_type,
+            content,
+            purchase_attempt_id,
+            payment_method,
+            rng,
+        ),
     }
 
 
-def _uses_content(event_type):
-    """이벤트 타입이 특정 콘텐츠와 연결되는지 판단한다."""
-    return event_type in {
-        "content_view",
-        "purchase_start",
-        "purchase_complete",
-        "payment_failed",
-    }
+def _occurred_at(rng, base_time, session_index, step_index):
+    """세션은 3분 간격, 세션 안의 이벤트는 30초 간격으로 퍼져 보이게 한다."""
+    #   너무 기계적으로 30초 단위만 찍히지 않도록 약간의 랜덤성을 더한다.
+    offset = timedelta(
+        minutes=session_index * 3,
+        seconds=step_index * 30 + rng.randint(0, 20),
+    )
 
-
-def _occurred_at(rng, base_time, index):
-    """index * 3분을 더해 이벤트가 시간 순서대로 퍼져 보이게 한다."""
-    offset = timedelta(minutes=index * 3 + rng.randint(0, 2), seconds=rng.randint(0, 59))
     return (base_time + offset).isoformat()
 
 
@@ -160,7 +234,7 @@ def _user_id(rng):
     return f"user_{rng.randint(1, 300)}"
 
 
-def _properties_for(event_type, content, purchase_attempt_id, rng):
+def _properties_for(event_type, content, purchase_attempt_id, payment_method, rng):
     """event_type별 properties 값을 만든다."""
     if event_type == "session_start":
         return {}
@@ -177,21 +251,21 @@ def _properties_for(event_type, content, purchase_attempt_id, rng):
         return {"content_id": content["content_id"]}
 
     if event_type == "purchase_start":
-        return _purchase_properties(content, purchase_attempt_id, rng)
+        return _purchase_properties(content, purchase_attempt_id, payment_method)
 
     if event_type == "purchase_complete":
-        properties = _purchase_properties(content, purchase_attempt_id, rng)
+        properties = _purchase_properties(content, purchase_attempt_id, payment_method)
         properties["order_id"] = f"order_{rng.randint(1, 5000)}"
         return properties
 
-    properties = _purchase_properties(content, purchase_attempt_id, rng)
+    properties = _purchase_properties(content, purchase_attempt_id, payment_method)
     error_code, error_msg = rng.choice(ERRORS)
     properties["error_code"] = error_code
     properties["error_msg"] = error_msg
     return properties
 
 
-def _purchase_properties(content, purchase_attempt_id, rng):
+def _purchase_properties(content, purchase_attempt_id, payment_method):
     """구매 관련 이벤트에서 공통으로 쓰는 properties를 만든다."""
     price = content["price"]
     discount_amount = content["discount_amount"]
@@ -202,19 +276,18 @@ def _purchase_properties(content, purchase_attempt_id, rng):
         "purchase_attempt_id": purchase_attempt_id,
         "discount_amount": discount_amount,
         "amount": amount,
-        "payment_method": rng.choice(PAYMENT_METHODS),
+        "payment_method": payment_method,
     }
 
 
 def main():
     parser = argparse.ArgumentParser()
 
-    # --seed 1처럼 seed를 주면 같은 랜덤 이벤트를 다시 만들 수 있다.
     parser.add_argument("--seed", type=int, default=None, help="재현 가능한 생성을 위한 seed")
-    parser.add_argument("--count", type=int, default=100, help="생성할 이벤트 수")
+    parser.add_argument("--sessions", type=int, default=100, help="생성할 세션 수")
     args = parser.parse_args()
 
-    for event in generate_events(count=args.count, seed=args.seed):
+    for event in generate_events(sessions=args.sessions, seed=args.seed):
         print(json.dumps(event, ensure_ascii=False))
 
 
