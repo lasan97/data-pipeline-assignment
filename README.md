@@ -34,8 +34,26 @@
 | 콘텐츠 상세 조회가 구매로 이어지는가? | content_view, purchase_start, purchase_complete | partner_id, session_id, user_id, content_id, purchase_attempt_id, amount | 조회 대비 구매 시작률과 구매 완료율이 낮은 콘텐츠를 찾아 가격, 설명, 혜택 구성을 개선한다.                   |
 | 결제에서 실패하는가? | purchase_start, purchase_complete, payment_failed | partner_id, session_id, purchase_attempt_id, payment_method, error_code, error_msg | 결제 실패율이 높은 결제 수단, 디바이스, 오류 코드를 찾아 결제 UX와 오류 대응을 개선한다.                   |
 
-## 실행
+## 시각화 스크린샷
+<table>
+  <tr>
+    <td valign="top">
+      <img src="./outputs/dashboard.png" alt="대시보드 스크린샷">
+    </td>
+    <td valign="top">
+      <img src="./outputs/partner.png" alt="파트너 스크린샷">
+    </td>
+  </tr>
+</table>
 
+## Docker Compose 실행
+```bash
+docker compose up --build
+```
+대시보드는 브라우저에서 `http://127.0.0.1:8050`으로 확인할 수 있다.
+
+## 로컬 실행
+Postgres DB .env.example에 맞게 준비
 ### 실행 전 준비
 ```bash
 python3 -m venv .venv
