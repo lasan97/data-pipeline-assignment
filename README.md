@@ -34,6 +34,49 @@
 | 콘텐츠 상세 조회가 구매로 이어지는가? | content_view, purchase_start, purchase_complete | partner_id, session_id, user_id, content_id, purchase_attempt_id, amount | 조회 대비 구매 시작률과 구매 완료율이 낮은 콘텐츠를 찾아 가격, 설명, 혜택 구성을 개선한다.                   |
 | 결제에서 실패하는가? | purchase_start, purchase_complete, payment_failed | partner_id, session_id, purchase_attempt_id, payment_method, error_code, error_msg | 결제 실패율이 높은 결제 수단, 디바이스, 오류 코드를 찾아 결제 UX와 오류 대응을 개선한다.                   |
 
+## 저장소 설계
+스키마 파일은 [db/init.sql](./db/init.sql)에 위치
+
+이벤트 로그는 `events` 테이블에 저장한다.
+공통 분석 필드는 컬럼으로 분리하고, 이벤트 타입별로 달라지는 상세 값만 `properties` JSONB 컬럼에 저장한다.
+
+### partners 테이블
+가상의 파트너를 명시하기 위한 테이블
+필드는 최소한의 필드를 위해 Id, Name만 지정
+
+| 컬럼 | 타입           | 설명        |
+|---|--------------|-----------|
+| partner_id | VARCHAR(50)  | 파트너 고유 ID |
+| partner_name | VARCHAR(100) | 파트너 이름    |
+
+### contents 테이블
+가상의 콘텐츠를 명시하기 위한 테이블
+금액은 NUMERIC / DECIMAL 대신 INTEGER 사용 (이유 - 여기서 소수점을 사용할 생각이 없었음)
+
+| 컬럼 | 타입           | 설명        |
+|---|--------------|-----------|
+| content_id | VARCHAR(50)  | 콘텐츠 고유 ID |
+| partner_id | VARCHAR(50)  | 파트너 고유 ID |
+| content_title | VARCHAR(100) | 콘텐츠 제목    |
+| price | INTEGER  | 가격    |
+| discount_amount | INTEGER  | 할인 금액 |
+
+### events 테이블
+목표에 필요하다고 생각되는 컬럼들만 추가 하였음
+현시점에서 불필요한 컬럼 없이 최대한 가볍게 가야한다고 생각함
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| event_id | UUID | 이벤트 고유 ID |
+| event_type | VARCHAR(50) | 이벤트 종류 |
+| occurred_at | TIMESTAMPTZ | 이벤트 발생 시간 |
+| partner_id | VARCHAR(50) | 파트너 ID |
+| user_id | VARCHAR(50), nullable | 사용자 ID |
+| session_id | VARCHAR(50) | 세션 ID |
+| device_type | VARCHAR(20), nullable | 디바이스 종류 |
+| properties | JSONB | 이벤트별 상세 속성 |
+| created_at | TIMESTAMPTZ | DB 저장 시간 |
+
 ## 실행 전 준비
 ```bash
 python3 -m venv .venv
