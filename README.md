@@ -7,9 +7,8 @@
   - 이벤트 생성, 데이터 적재, 집계 분석, 시각화를 하나의 언어로 처리하기 쉽다.
   - 데이터 분석과 시각화 생태계를 활용할 수 있다.
 - postgres
-  - 공통 이벤트 필드는 컬럼으로 관리하고, 이벤트별 상세 속성은 JSONB로 저장할 수 있다.
-  - 이벤트 타입이 추가되더라도 DB 스키마 변경을 최소화할 수 있다.
-  - 파트너별, 콘텐츠별, 이벤트 타입별 집계 분석을 SQL로 수행할 수 있다.
+  - 이벤트 타입, 파트너, 시간대 기준 집계를 SQL로 작성하기 쉽다.
+  - 이 프로젝트는 파트너, 이벤트 타입, 시간대처럼 명확한 기준으로 집계하는 것이 중요하므로 NoSQL보다 Postgres가 더 적합하다고 판단함.
 
 ## 요구사항 
 - 이벤트 로그를 통해서 각 파트너 고객의 유입, 콘텐츠 관심도, 구매 전환, 에러를 분석해 개선 컨설팅에 활용할 수 있어야한다.
@@ -35,27 +34,43 @@
 | 콘텐츠 상세 조회가 구매로 이어지는가? | content_view, purchase_start, purchase_complete | partner_id, session_id, user_id, content_id, purchase_attempt_id, amount | 조회 대비 구매 시작률과 구매 완료율이 낮은 콘텐츠를 찾아 가격, 설명, 혜택 구성을 개선한다.                   |
 | 결제에서 실패하는가? | purchase_start, purchase_complete, payment_failed | partner_id, session_id, purchase_attempt_id, payment_method, error_code, error_msg | 결제 실패율이 높은 결제 수단, 디바이스, 오류 코드를 찾아 결제 UX와 오류 대응을 개선한다.                   |
 
-## 저장소 설계
-이벤트 로그는 `events` 테이블에 저장한다.
-공통 분석 필드는 컬럼으로 분리하고, 이벤트 타입별로 달라지는 상세 값만 `properties` JSONB 컬럼에 저장한다.
+## 실행 전 준비
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python3 -m src.reset_db
+```
 
-### events 테이블
-| 컬럼 | 타입 | 설명 |
-|---|---|---|
-| event_id | UUID | 이벤트 고유 ID |
-| event_type | VARCHAR(50) | 이벤트 종류 |
-| occurred_at | TIMESTAMPTZ | 이벤트 발생 시간 |
-| partner_id | VARCHAR(50) | 파트너 ID |
-| user_id | VARCHAR(50), nullable | 사용자 ID |
-| session_id | VARCHAR(50) | 세션 ID |
-| device_type | VARCHAR(20), nullable | 디바이스 종류 |
-| properties | JSONB | 이벤트별 상세 속성 |
-| created_at | TIMESTAMPTZ | DB 저장 시간 |
+이벤트 생성기는 `contents` 시드 데이터를 기반으로 세션 단위 랜덤 이벤트를 만든다.
 
-스키마 파일은 [db/init.sql](./db/init.sql)에 둔다.
+```text
+session_start
+→ landing_page_view
+  → 이탈
+  → content_view
+    → 이탈
+    → purchase_start
+      → 이탈
+      → purchase_complete
+      → payment_failed
+```
 
-### Postgres를 선택한 이유
-- 이벤트 타입, 파트너, 시간대 기준 집계를 SQL로 작성하기 쉽다.
-- 공통 필드는 컬럼으로 분리해 자주 쓰는 조건과 집계에 활용할 수 있다.
-- `properties` JSONB를 함께 사용하면 이벤트 타입별 상세 속성을 유연하게 저장할 수 있다.
-- 이 프로젝트는 파트너, 이벤트 타입, 시간대처럼 명확한 기준으로 집계하는 것이 중요하므로 NoSQL보다 Postgres가 더 적합하다고 판단함.
+## 이벤트 생성
+```bash
+python3 -m src.event_generator --sessions 100 --seed 1
+```
+
+## 이벤트 저장
+`--seed`를 지정하면 같은 이벤트를 다시 생성할 수 있다.
+```bash
+python3 -m src.event_store --sessions 100 --seed 1
+```
+
+## 결과 시각화
+```bash
+python3 -m src.dashboard --host 127.0.0.1 --port 8050
+```
+
+브라우저에서 `http://127.0.0.1:8050`으로 접속한다.
