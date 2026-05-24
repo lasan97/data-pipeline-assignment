@@ -34,3 +34,27 @@
 | 방문자가 콘텐츠 상세 페이지까지 이동하는가? | session_start, content_view | partner_id, session_id, content_id | 방문자의 콘텐츠 조회로 이어지는 비율을 확인해 홈, 유입 페이지, 콘텐츠 목록 등에서 콘텐츠 노출 방식과 CTA를 개선한다. |
 | 콘텐츠 상세 조회가 구매로 이어지는가? | content_view, purchase_start, purchase_complete | partner_id, session_id, user_id, content_id, purchase_attempt_id, amount | 조회 대비 구매 시작률과 구매 완료율이 낮은 콘텐츠를 찾아 가격, 설명, 혜택 구성을 개선한다.                   |
 | 결제에서 실패하는가? | purchase_start, purchase_complete, payment_failed | partner_id, session_id, purchase_attempt_id, payment_method, error_code, error_msg | 결제 실패율이 높은 결제 수단, 디바이스, 오류 코드를 찾아 결제 UX와 오류 대응을 개선한다.                   |
+
+## 저장소 설계
+이벤트 타입별로 달라지는 상세 값만 `properties` JSONB 컬럼에 저장한다.
+
+### events 테이블
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| event_id | UUID | 이벤트 고유 ID |
+| event_type | VARCHAR(50) | 이벤트 종류 |
+| occurred_at | TIMESTAMPTZ | 이벤트 발생 시간 |
+| partner_id | VARCHAR(50) | 파트너 ID |
+| user_id | VARCHAR(50), nullable | 사용자 ID |
+| session_id | VARCHAR(50) | 세션 ID |
+| device_type | VARCHAR(20), nullable | 디바이스 종류 |
+| properties | JSONB | 이벤트별 상세 속성 |
+| created_at | TIMESTAMPTZ | DB 저장 시간 |
+
+스키마 파일은 [db/init.sql](./db/init.sql)에 둔다.
+
+### Postgres를 선택한 이유
+- 이벤트 타입, 파트너, 시간대 기준 집계를 SQL로 작성하기 쉽다.
+- 공통 필드는 컬럼으로 분리해 자주 쓰는 조건과 집계에 활용할 수 있다.
+- `properties` JSONB를 함께 사용하면 이벤트 타입별 상세 속성을 유연하게 저장할 수 있다.
+- 이 프로젝트는 파트너, 이벤트 타입, 시간대처럼 명확한 기준으로 집계하는 것이 중요하므로 NoSQL보다 Postgres가 더 적합하고 판단함.
