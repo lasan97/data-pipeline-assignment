@@ -36,7 +36,8 @@
 | 결제에서 실패하는가? | purchase_start, purchase_complete, payment_failed | partner_id, session_id, purchase_attempt_id, payment_method, error_code, error_msg | 결제 실패율이 높은 결제 수단, 디바이스, 오류 코드를 찾아 결제 UX와 오류 대응을 개선한다.                   |
 
 ## 저장소 설계
-이벤트 타입별로 달라지는 상세 값만 `properties` JSONB 컬럼에 저장한다.
+이벤트 로그는 `events` 테이블에 저장한다.
+공통 분석 필드는 컬럼으로 분리하고, 이벤트 타입별로 달라지는 상세 값만 `properties` JSONB 컬럼에 저장한다.
 
 ### events 테이블
 | 컬럼 | 타입 | 설명 |
