@@ -61,7 +61,7 @@
   - properties:
     - content_id (콘텐츠 ID)
     - purchase_attempt_id (구매 시도 ID)
-    - price (가격)
+    - amount (결제 예정 금액)
     - discount_amount (할인금액, nullable)
   - used_for_analysis:
     - 콘텐츠 상세 조회 대비 결제 시작률
