@@ -27,11 +27,10 @@
 ## 목표
 이 프로젝트로 얻고자하는 가상의 인사이트
 
-| 분석 질문 | 필요한 이벤트 | 주요 필드 | 컨설팅 액션 |
-|---|---|---|---|
-| 방문자는 충분히 들어오는가? | ? | ? | ? |
-| 유입 채널별 방문 비중을 확인할 수 있는가? | ? | ? | ? |
-| 방문자가 콘텐츠 상세 페이지까지 이동하는가? | ? | ? | ? |
-| 콘텐츠 상세 조회가 구매로 이어지는가? | ? | ? | ? |
-| 결제에서 실패하는가? | ? | ? | ? |
-
+| 분석 질문 | 필요한 이벤트 | 주요 필드 | 컨설팅 액션                                                                  |
+|---|---|---|-------------------------------------------------------------------------|
+| 방문자는 충분히 들어오는가? | session_start | timestamp, partner_id, session_id, device_type | 파트너별 방문 수와 방문 추이를 확인해 유입 확대가 필요한 파트너를 찾는다.                              |
+| 유입 채널별 방문 비중을 확인할 수 있는가? | landing_page_view | partner_id, session_id, landing_page, referrer, utm_source, utm_campaign | 성과가 좋은 유입 채널과 캠페인을 확인해 광고 예산과 콘텐츠 홍보 채널을 조정한다.                          |
+| 방문자가 콘텐츠 상세 페이지까지 이동하는가? | session_start, content_view | partner_id, session_id, content_id | 방문자의 콘텐츠 조회로 이어지는 비율을 확인해 홈, 유입 페이지, 콘텐츠 목록 등에서 콘텐츠 노출 방식과 CTA를 개선한다. |
+| 콘텐츠 상세 조회가 구매로 이어지는가? | content_view, purchase_start, purchase_complete | partner_id, session_id, user_id, content_id, purchase_attempt_id, amount | 조회 대비 구매 시작률과 구매 완료율이 낮은 콘텐츠를 찾아 가격, 설명, 혜택 구성을 개선한다.                   |
+| 결제에서 실패하는가? | purchase_start, purchase_complete, payment_failed | partner_id, session_id, purchase_attempt_id, payment_method, error_code, error_msg | 결제 실패율이 높은 결제 수단, 디바이스, 오류 코드를 찾아 결제 UX와 오류 대응을 개선한다.                   |
