@@ -38,10 +38,10 @@
 <table>
   <tr>
     <td valign="top">
-      <img src="./outputs/dashboard.png" alt="대시보드 스크린샷">
+      <img src="resources/charts/dashboard.jpeg" alt="대시보드 스크린샷">
     </td>
     <td valign="top">
-      <img src="./outputs/partner.png" alt="파트너 스크린샷">
+      <img src="resources/charts/partner.jpeg" alt="파트너 스크린샷">
     </td>
   </tr>
 </table>
