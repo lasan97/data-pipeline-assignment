@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-pipeline-config
+
+data:
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  EVENT_SESSIONS: "500"
+  EVENT_SEED: "1"
+  DASHBOARD_PORT: "8050"

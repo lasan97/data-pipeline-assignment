@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-pipeline-app
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: data-pipeline-app
+  template:
+    metadata:
+      labels:
+        app: data-pipeline-app
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"; do
+                sleep 2
+              done
+          envFrom:
+            - configMapRef:
+                name: data-pipeline-config
+            - secretRef:
+                name: data-pipeline-secret
+
+      containers:
+        - name: app
+          image: data-pipeline-app:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8050
+          envFrom:
+            - configMapRef:
+                name: data-pipeline-config
+            - secretRef:
+                name: data-pipeline-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-pipeline-dashboard
+
+spec:
+  selector:
+    app: data-pipeline-app
+  ports:
+    - port: 8050
+      targetPort: 8050
