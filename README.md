@@ -138,6 +138,63 @@ python3 -m src.dashboard --host 127.0.0.1 --port 8050
 | properties | JSONB | 이벤트별 상세 속성 |
 | created_at | TIMESTAMPTZ | DB 저장 시간 |
 
+
+## 선택 과제 A - Kubernetes
+Kubernetes manifest는 [k8s](./k8s) 디렉터리에 작성
+
+### 로컬 테스트 방법
+Docker Desktop Kubernetes를 enable
+![도커 쿠버네티스 옵션](./resources/docker-kubernetes.png)
+
+#### 실행
+```bash
+docker build -t data-pipeline-app:local .
+kubectl apply -f k8s/
+kubectl get pods
+# 컨테이너 실행 확인 후
+kubectl port-forward service/data-pipeline-dashboard 8050:8050
+```
+wait을 제외한 두 개의 컨테이너 실행이 확인 되었다면 `http://127.0.0.1:8050`에 접속 가능하다.
+
+#### 종료
+```bash
+kubectl delete -f k8s/
+# 컨테이너 종료 확인 후
+docker rmi data-pipeline-app:local
+```
+
+### 작성한 리소스와 역할
+- `configmap.yaml` - `ConfigMap`
+  - 민감하지 않은 환경변수를 관리한다.
+  - 생성 세션개수, dashboard port 정보 등
+- `secret.yaml` - `Secret` 
+  - 일반적인 위치에 노출하기 부담스러운 민감한 환경변수를 관리한다.
+  - DB 커넥션 정보
+- `postgres.yaml` - `Deployment & Service`
+  - `Deployment`
+    - selector로 지정한 app이 replicas에 설정한 개수를 유지하도록 관리한다. (app=postgres, 1개)
+    - template의 도면대로 pod은 컨테이너를 실행한다.
+    - secretKeyRef를 사용하여 secret의 단일 환경변수를 참조하여 사용한다. (DB_NAME, DB_USER, DB_PASSWORD)
+  - `Service`
+    - 요청을 pod에 전달하기 위한 경로를 잡아준다.
+      - pod 죽어서 새로운 pod을 만들었는데 service가 없다면 새로 생성된 pod의 주소가 달라져서 곤란하다.
+      - 로드벨런서 역할도 수행 (pod이 2개 이상일 경우 트래픽을 분산)
+- `app.yaml` - `Deployment & Service`
+  - `Deployment`
+    - initContainers을 사용하여 pod가 실행 될 때 wait-for-postgres 컨테이너를 먼저 실행한다. (DB를 같이 배포한다는 특수성)
+      - postgres가 잘 올라갔는지 확인하기 위한 컨테이너 (확인 후 컨테이너 종료)
+      - 확인이 되었다면 app 컨테이너 실행한다.
+    - imagePullPolicy를 Never로 줘서 혹시라도 잘못된 pull을 방지한다.
+    - envFrom에서 configMapRef, secretRef를 사용하여 모든 환경변수를 불러오게한다.
+  - `Service`
+    - `postgres.yaml` 설명과 동일
+
+### 리소스를 선택한 이유
+- 로컬에서 테스트가 가능한 스펙으로 만들기 위해 app,DB를 같이 넣었다.
+- 원격 서버에 배포한다고 가정하면 DB는 외부의 DB를 사용하게 될 것 이므로 `postgres.yaml`은 필요 없게된다. (`app.yaml`의 initContainers 또한)
+- 환경변수를 이미지에 고정하지 않기 위해 `configmap.yaml`와 `scret.yaml`을 사용하였다. (DB 커넥션 정보는 민감정보라 scret을 사용했다.) 
+- docker compose와 같은 스펙으로 하기위해 initContainer를 사용하여 DB가 먼저 올라온 뒤 app이 배포되게 하였다.
+
 ## 구현하면서 고민한 점
 - 프로젝트에서 목표 수립  
 이벤트를 먼저 정한다면 그 틀에서의 인사이트 밖에 안나올거라 생각하여 목표를 먼저 세우는데
