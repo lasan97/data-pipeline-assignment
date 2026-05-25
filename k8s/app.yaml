@@ -24,8 +24,6 @@ spec:
                 sleep 2
               done
           envFrom:
-            - configMapRef:
-                name: data-pipeline-config
             - secretRef:
                 name: data-pipeline-secret
 
