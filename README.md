@@ -200,7 +200,7 @@ docker rmi data-pipeline-app:local
 ### 리소스를 선택한 이유
 - 로컬에서 테스트가 가능한 스펙으로 만들기 위해 app,DB를 같이 넣었다.
 - 원격 서버에 배포한다고 가정하면 DB는 외부의 DB를 사용하게 될 것 이므로 `postgres.yaml`은 필요 없게된다. (`app.yaml`의 initContainers 또한)
-- 환경변수를 이미지에 고정하지 않기 위해 `configmap.yaml`와 `scret.yaml`을 사용하였다. (DB 커넥션 정보는 민감정보라 scret을 사용했다.) 
+- 환경변수를 이미지에 고정하지 않기 위해 `configmap.yaml`와 `secret.yaml`을 사용하였다. (DB 커넥션 정보는 민감정보라 secret을 사용했다.) 
 - docker compose와 같은 스펙으로 하기위해 initContainer를 사용하여 DB가 먼저 올라온 뒤 app이 배포되게 하였다.
 
 ## 선택 과제 B - AWS
